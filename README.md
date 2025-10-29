@@ -381,8 +381,130 @@ SELECT E.employee_id , Count(S.sale_id)
 		GROUP BY E.employee_id
         HAVING Count(S.sale_id) >= 3;
         
--- #.	Count how many departments each location has.
+#.	Count how many departments each location has.
 
 SELECT location , COUNT(department_id)
 	FROM departments
     GROUP BY location;
+
+Count how many departments each location has.
+
+SELECT location , COUNT(department_id)
+	FROM departments
+    GROUP BY location;
+    
+#	Find employees who earn above the company average salary.
+
+SELECT CONCAT(E.first_name,' ' ,E.last_name) AS Emp_name, E.salary
+	FROM employee_details E
+		WHERE E.salary > (
+	SELECT avg(salary) AS Avg_Salary
+	FROM employee_details)
+    ORDER BY E.salary DESC;
+
+#	List employees who work in departments with average salary > $60,000.
+
+WITH Dep_Avg_salary AS (
+    SELECT 
+        department_id,
+        AVG(salary) AS dept_avg_salary
+    FROM employee_details
+    GROUP BY department_id
+)
+SELECT 
+    CONCAT(E.first_name, ' ', E.last_name) AS Emp_name,
+    E.salary, G.department_name
+FROM employee_details E
+JOIN Dep_Avg_salary D
+    ON E.department_id = D.department_id
+JOIN departments G ON
+	E.department_id = G.department_id
+WHERE D.dept_avg_salary > 60000
+ORDER BY E.department_id, E.salary DESC;
+
+# Get employees who have made sales greater than the average sale amount.
+
+SELECT CONCAT(E.first_name, ' ', E.last_name) AS Emp_name, S.amount 
+	FROM employee_details E 
+		JOIN sales S ON 
+			E.employee_id = S.employee_id
+    WHERE S.amount > ( SELECT AVG(amount) FROM sales);
+    
+#	Find departments where no sales have occurred.
+
+SELECT 
+    D.department_name
+FROM departments D
+LEFT JOIN employee_details E 
+    ON D.department_id = E.department_id
+LEFT JOIN sales S 
+    ON E.employee_id = S.employee_id
+WHERE S.sale_id IS NULL;
+
+#	List employees who are managers (exist in manager_id column). 
+
+SELECT DISTINCT 
+    M.employee_id,
+    CONCAT(M.first_name, ' ', M.last_name) AS Manager_Name
+FROM employee_details E
+JOIN employee_details M 
+    ON E.manager_id = M.employee_id;
+
+#	Get employees who do not manage anyone.
+
+SELECT 
+    CONCAT(first_name, ' ', last_name) AS Emp_Name,
+    employee_id
+FROM employee_details
+WHERE employee_id NOT IN (
+    SELECT DISTINCT manager_id 
+    FROM employee_details 
+    WHERE manager_id IS NOT NULL
+);
+
+-- Update 
+
+UPDATE employee_details
+SET hire_date = '2010-01-01'
+WHERE employee_id = 102;
+
+
+#	Find employees hired before their manager.
+
+SELECT 
+    CONCAT(E.first_name, ' ', E.last_name) AS Emp_Name,
+    E.hire_date AS Emp_Hire_Date,
+    CONCAT(M.first_name, ' ', M.last_name) AS Manager_Name,
+    M.hire_date AS Manager_Hire_Date
+FROM employee_details E
+JOIN employee_details M 
+    ON E.manager_id = M.employee_id
+WHERE E.hire_date < M.hire_date
+ORDER BY M.hire_date;
+
+#	Find the top 3 earners in the company.
+
+SELECT CONCAT(E.first_name, ' ', E.last_name) AS Emp_Name, E.salary
+	FROM employee_details E 
+    ORDER BY E.salary DESC
+    Limit 3;
+    
+#	Show employees whose salary is within 10% of their manager’s salary.
+
+SELECT CONCAT(E.first_name, ' ', E.last_name) AS Emp_Name,
+		CONCAT(M.first_name, ' ', M.last_name) AS Mng_Name,
+        E.salary AS Emp_Salary,
+        M.salary AS Mng_Salary
+	FROM employee_details E 
+		JOIN employee_details M 
+        ON E.manager_id = M.employee_id
+			WHERE E.salary BETWEEN 0.9 * M.salary AND 1.1 * M.salary
+ORDER BY M.salary DESC;
+
+# Display the second highest salary (without using LIMIT or TOP 2).
+
+SELECT Emp_Name , Emp_Salary FROM (SELECT CONCAT(E.first_name, ' ', E.last_name) AS Emp_Name,
+        E.salary AS Emp_Salary,
+        RANK() OVER (ORDER BY E.salary DESC)  AS rnk
+        FROM employee_details E ) ranked
+	    WHERE rnk =2;
